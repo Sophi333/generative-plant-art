@@ -3,7 +3,7 @@
 <head>
   <title>Live Plant Art</title>
   <style>
-    body { background: #000; color: #fff; font-family: Arial; padding: 20px; }
+    body { background: #000; color: #fff; font-family: Arial; padding: 20px; margin: 0; }
     .gallery { 
       display: grid; 
       grid-template-columns: repeat(4, 1fr); 
@@ -17,52 +17,71 @@
       object-fit: cover; 
       border-radius: 8px; 
       box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+      background: #111;
     }
-    h1 { text-align: center; color: #0f0; }
+    h1 { text-align: center; color: #0f0; margin-bottom: 10px; }
+    #status { text-align: center; color: #ccc; margin-bottom: 20px; font-size: 14px; }
   </style>
 </head>
 <body>
   <h1>🌱 Live Plant Bioimpedance Art</h1>
-  <p style="text-align:center; color:#666;">Auto-updates every 30s (20 newest frames)</p>
-  
-  <div class="gallery" id="gallery">
-    <!-- JS populates this -->
-  </div>
+  <div id="status">Loading newest 20 frames...</div>
+  <div class="gallery" id="gallery"></div>
 
   <script>
-    const USERNAME = 'YOURUSERNAME';  // Change this
+    const USERNAME = 'YOURUSERNAME';  // ← CHANGE TO YOUR GH USERNAME
     const REPO = 'plant-art-live';
-    const BRANCH = 'main';
     
-    async function fetchImages() {
+    async function loadImages() {
+      const status = document.getElementById('status');
+      status.textContent = 'Fetching frames from GitHub...';
+      
       try {
-        // Fetch GitHub API directory listing
-        const url = `https://api.github.com/repos/${USERNAME}/${REPO}/contents/frames?ref=${BRANCH}`;
-        const response = await fetch(url);
+        // GitHub API - list frames/ folder
+        const response = await fetch(`https://api.github.com/repos/${USERNAME}/${REPO}/contents/frames`);
         const files = await response.json();
         
-        // Filter PNGs, sort newest first, take 20
-        const pngs = files
-          .filter(f => f.name.endsWith('.png'))
-          .sort((a,b) => new Date(b.download_url.split('_')[3]) - new Date(a.download_url.split('_')[3]))
+        // Filter PNGs only, sort newest first by filename, take top 20
+        const pngFiles = files
+          .filter(file => file.name.toLowerCase().endsWith('.png'))
+          .sort((a, b) => b.name.localeCompare(a.name))  // Newest timestamp first
           .slice(0, 20);
         
-        // Build gallery HTML
+        // Debug: log first few files
+        console.log('Found PNGs:', pngFiles.length);
+        if (pngFiles.length > 0) {
+          console.log('Newest:', pngFiles[0].name);
+        }
+        
+        // Build image grid
         const gallery = document.getElementById('gallery');
-        gallery.innerHTML = pngs.map(img => 
-          `<img src="${img.download_url}" alt="Plant Art Frame" loading="lazy">`
+        if (pngFiles.length === 0) {
+          gallery.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#f66; padding:40px;">No PNG frames found in frames/ folder</div>';
+          status.textContent = 'No images found';
+          return;
+        }
+        
+        gallery.innerHTML = pngFiles.map(file => 
+          `<img src="${file.download_url}" alt="${file.name}" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMTEwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcgZnJhbWUuLi48L3RleHQ+PC9zdmc+'">`
         ).join('');
         
-      } catch(e) {
+        status.textContent = `${pngFiles.length}/20 newest frames loaded`;
+        
+      } catch (error) {
+        console.error('GitHub API error:', error);
+        status.textContent = 'Error loading frames (check console)';
         document.getElementById('gallery').innerHTML = 
-          '<div style="grid-column:1/-1;text-align:center;color:#f66;">Loading frames... (check console)</div>';
-        console.error('GitHub fetch failed:', e);
+          '<div style="grid-column:1/-1; text-align:center; color:#f66; padding:40px;">Failed to fetch frames from GitHub API</div>';
       }
     }
     
-    // Load on start, refresh every 30 seconds
-    fetchImages();
-    setInterval(fetchImages, 30000);
+    // Load on page load + auto-refresh every 30 seconds
+    loadImages();
+    setInterval(loadImages, 30000);
   </script>
 </body>
 </html>
+
+</body>
+</html>
+
